@@ -1,0 +1,103 @@
+# despliega la API en Google Cloud cada vez que se hace push a la rama principal.
+# Tres trabajos, uno detrás del otro: backend -> terraform -> despliegue
+name: Desplegar en Google Cloud
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # también se puede correr a mano desde la pestaña Actions
+
+env:
+  PROYECTO: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  # la imagen lleva como etiqueta el commit, así cada despliegue es distinto
+  IMAGEN: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/imagenes/api:${{ github.sha }}
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: Backend/go.mod
+
+      - name: Instalar dependencias
+        run: go mod download
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -o api .
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Docker Build
+        run: docker build -t "$IMAGEN" .
+
+      - name: Push Artifact Registry
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker push "$IMAGEN"
+
+  terraform:
+    name: Terraform
+    needs: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      # los secretos llegan a Terraform como variables, nunca escritos en el código
+      TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
+      TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out plan.tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve plan.tfplan
+
+  desplegar:
+    name: Despliegue
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cloud Build (gcloud builds submit)
+        run: gcloud builds submit Backend --config Backend/cloudbuild.yaml --region "$REGION" --substitutions "_IMAGEN=$IMAGEN"
+
+      - name: Deploy Cloud Run
+        run: gcloud run deploy api --image "$IMAGEN" --region "$REGION" --quiet

@@ -1,0 +1,13 @@
+# Cloud Build: construye la imagen Docker de la API y la publica en Artifact Registry.
+# GitHub Actions lo llama con "gcloud builds submit", pasándole la imagen en _IMAGEN
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGEN}", "."]
+
+images:
+  - "${_IMAGEN}"
+
+# corre con la cuenta de servicio que creó Terraform, y guarda los logs en Cloud Logging
+serviceAccount: "projects/actividad-paralelos/serviceAccounts/cloud-build@actividad-paralelos.iam.gserviceaccount.com"
+options:
+  logging: CLOUD_LOGGING_ONLY

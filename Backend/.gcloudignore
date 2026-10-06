@@ -1,0 +1,5 @@
+# lo que gcloud builds submit no sube a Cloud Build
+.env
+uploads
+api
+api.exe

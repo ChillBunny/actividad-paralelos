@@ -1,0 +1,122 @@
+# las rutas que API Gateway deja pasar hacia Cloud Run.
+# Terraform reemplaza ${url_cloud_run} por la dirección real del servicio.
+# disable_auth: el gateway no agrega su propio token, así llega el JWT de la app tal cual
+swagger: "2.0"
+info:
+  title: actividad-api
+  version: "1.0"
+schemes:
+  - https
+x-google-backend:
+  address: ${url_cloud_run}
+  path_translation: APPEND_PATH_TO_ADDRESS
+  disable_auth: true
+paths:
+  /:
+    get:
+      operationId: inicio
+      responses:
+        "200":
+          description: La API responde
+  /register:
+    post:
+      operationId: registrar
+      responses:
+        "201":
+          description: Usuario creado
+  /login:
+    post:
+      operationId: login
+      responses:
+        "200":
+          description: Devuelve el JWT
+  /login/super:
+    post:
+      operationId: entrarComoSuperUsuario
+      responses:
+        "200":
+          description: Devuelve el JWT del super usuario
+  /users:
+    get:
+      operationId: listarUsuarios
+      responses:
+        "200":
+          description: Lista de usuarios
+    post:
+      operationId: crearUsuario
+      responses:
+        "201":
+          description: Usuario creado
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+    get:
+      operationId: verUsuario
+      responses:
+        "200":
+          description: Un usuario
+    put:
+      operationId: editarUsuario
+      responses:
+        "200":
+          description: Usuario editado
+    delete:
+      operationId: borrarUsuario
+      responses:
+        "200":
+          description: Usuario borrado
+  /files:
+    get:
+      operationId: listarArchivos
+      responses:
+        "200":
+          description: Archivos del usuario
+  /upload:
+    post:
+      operationId: subirArchivo
+      responses:
+        "201":
+          description: Archivo subido
+  /upload/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+    delete:
+      operationId: borrarArchivo
+      responses:
+        "200":
+          description: Archivo borrado
+  /uploads/{archivo}:
+    parameters:
+      - in: path
+        name: archivo
+        required: true
+        type: string
+    get:
+      operationId: verArchivo
+      responses:
+        "200":
+          description: El archivo subido
+  /profile:
+    get:
+      operationId: verPerfil
+      responses:
+        "200":
+          description: El usuario del token
+  /stats:
+    get:
+      operationId: verEstadisticas
+      responses:
+        "200":
+          description: Cantidad de usuarios y archivos
+  /notifications:
+    get:
+      operationId: verNotificaciones
+      responses:
+        "200":
+          description: Últimos registros y subidas

@@ -1,0 +1,23 @@
+# claves y configuración local (en la nube van en GitHub Secrets y Secret Manager)
+.env
+*.json.key
+clave-*.json
+
+# dependencias y archivos generados
+node_modules/
+.expo/
+dist/
+Backend/uploads/
+Backend/api
+Backend/api.exe
+
+# Terraform: lo descarga y lo genera en cada máquina; el estado vive en un bucket
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# archivos de asistentes de IA (se guardan aparte, en "Ivan. Profesor/.claude proyectos")
+.claude/
+AGENTS.md
+CLAUDE.md
