@@ -12,7 +12,8 @@ async function entrar(ruta, cuerpo) {
 }
 
 export const login = (email, password) => entrar('/login', { email, password });
-export const entrarComoSuperUsuario = () => entrar('/login/super');
+// manda {} aunque la API no lo use: Google rechaza un POST sin cuerpo (error 411)
+export const entrarComoSuperUsuario = () => entrar('/login/super', {});
 export const registrar = (datos) => pedir('POST', '/register', datos);
 export const cerrarSesion = () => borrarToken();
 
