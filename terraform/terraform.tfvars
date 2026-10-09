@@ -4,4 +4,4 @@ region   = "us-central1"
 servicio = "api"
 
 # Cloud SQL cobra mientras exista: se enciende para la entrega y se apaga después
-crear_base = false
+crear_base = true

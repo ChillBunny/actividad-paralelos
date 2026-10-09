@@ -236,11 +236,14 @@ resource "google_cloud_run_v2_service" "api" {
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
 
+  # espera también a la base y a su usuario: si la API arranca antes, no puede entrar
   depends_on = [
     google_project_iam_member.api,
     google_secret_manager_secret_version.database_url,
     google_secret_manager_secret_version.jwt_secret,
     google_storage_bucket_iam_member.api,
+    google_sql_database.base,
+    google_sql_user.app,
   ]
 }
 
