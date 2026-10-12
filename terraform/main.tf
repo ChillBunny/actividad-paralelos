@@ -133,6 +133,10 @@ resource "google_sql_user" "app" {
   name     = "app"
   instance = google_sql_database_instance.base[0].name
   password = var.db_password
+
+  # al apagar la base no se borra el usuario por separado (es dueño de las tablas y
+  # PostgreSQL no lo deja): desaparece junto con la instancia
+  deletion_policy = "ABANDON"
 }
 
 # ---------- Storage Bucket: los archivos subidos ----------
