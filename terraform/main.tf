@@ -16,6 +16,7 @@ resource "google_project_service" "apis" {
     "cloudbuild.googleapis.com",
     "logging.googleapis.com",
     "iam.googleapis.com",
+    "pubsub.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -201,6 +202,16 @@ resource "google_cloud_run_v2_service" "api" {
         }
       }
 
+      # dónde publica el backend los correos por enviar
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.proyecto
+      }
+      env {
+        name  = "PUBSUB_TOPIC"
+        value = google_pubsub_topic.notificaciones.name
+      }
+
       volume_mounts {
         name       = "archivos"
         mount_path = "/app/uploads"
@@ -298,6 +309,161 @@ resource "google_api_gateway_gateway" "api" {
 resource "google_logging_metric" "errores_api" {
   name   = "errores-api"
   filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${var.servicio}\" AND severity>=ERROR"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# ---------- Pub/Sub: la cola de correos ----------
+
+# el tema donde el backend publica cada correo por enviar
+resource "google_pubsub_topic" "notificaciones" {
+  name       = "notificaciones"
+  depends_on = [google_project_service.apis]
+}
+
+# el backend tiene permiso para publicar en el tema
+resource "google_pubsub_topic_iam_member" "api_publica" {
+  topic  = google_pubsub_topic.notificaciones.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${google_service_account.api.email}"
+}
+
+# la suscripción: Pub/Sub empuja (push) cada mensaje del tema a la Cloud Run de
+# notificaciones. Si responde con error, lo reintenta durante 10 minutos
+resource "google_pubsub_subscription" "notificaciones" {
+  name                       = "notificaciones-a-cloud-run"
+  topic                      = google_pubsub_topic.notificaciones.id
+  ack_deadline_seconds       = 30
+  message_retention_duration = "600s"
+
+  push_config {
+    push_endpoint = google_cloud_run_v2_service.notificaciones.uri
+    oidc_token {
+      service_account_email = google_service_account.pubsub.email
+    }
+  }
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "60s"
+  }
+
+  depends_on = [google_cloud_run_v2_service_iam_member.pubsub_invoca]
+}
+
+# ---------- Cloud Run de notificaciones ----------
+
+# la identidad con la que corre el servicio de notificaciones
+resource "google_service_account" "notificaciones" {
+  account_id   = "notification-cloud-run"
+  display_name = "Cloud Run de notificaciones"
+}
+
+# puede leer la contraseña del correo y escribir logs
+resource "google_project_iam_member" "notificaciones" {
+  for_each = toset([
+    "roles/secretmanager.secretAccessor",
+    "roles/logging.logWriter",
+  ])
+  project = var.proyecto
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.notificaciones.email}"
+}
+
+# la contraseña de la cuenta de correo (SMTP) va en Secret Manager
+resource "google_secret_manager_secret" "smtp_password" {
+  secret_id = "SMTP_PASSWORD"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "smtp_password" {
+  secret      = google_secret_manager_secret.smtp_password.id
+  secret_data = var.smtp_password
+}
+
+resource "google_cloud_run_v2_service" "notificaciones" {
+  name                = "notification-cloud-run"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
+
+  template {
+    service_account = google_service_account.notificaciones.email
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    containers {
+      image = var.imagen
+
+      ports {
+        container_port = 8080
+      }
+
+      # el servidor de correo de Gmail y la cuenta que envía
+      env {
+        name  = "SMTP_HOST"
+        value = "smtp.gmail.com"
+      }
+      env {
+        name  = "SMTP_PORT"
+        value = "587"
+      }
+      env {
+        name  = "SMTP_USER"
+        value = var.smtp_user
+      }
+      env {
+        name = "SMTP_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.smtp_password.secret_id
+            version = "latest"
+          }
+        }
+      }
+    }
+  }
+
+  # la imagen la cambia "gcloud run deploy" en cada despliegue, no Terraform
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image, client, client_version]
+  }
+
+  depends_on = [
+    google_project_iam_member.notificaciones,
+    google_secret_manager_secret_version.smtp_password,
+  ]
+}
+
+# la identidad con la que Pub/Sub llama a la Cloud Run de notificaciones.
+# este servicio no es público: solo esa cuenta puede invocarlo
+resource "google_service_account" "pubsub" {
+  account_id   = "pubsub-invoker"
+  display_name = "Pub/Sub llama a notificaciones"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "pubsub_invoca" {
+  name     = google_cloud_run_v2_service.notificaciones.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.pubsub.email}"
+}
+
+# Logger: cuenta los correos enviados que registra el servicio de notificaciones
+resource "google_logging_metric" "correos_enviados" {
+  name   = "correos-enviados"
+  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"notification-cloud-run\" AND jsonPayload.message:\"correo enviado\""
 
   metric_descriptor {
     metric_kind = "DELTA"

@@ -12,6 +12,7 @@ env:
   REGION: ${{ secrets.GCP_REGION }}
   # la imagen lleva como etiqueta el commit, así cada despliegue es distinto
   IMAGEN: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/imagenes/api:${{ github.sha }}
+  IMAGEN_NOTIFICACIONES: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/imagenes/notifications:${{ github.sha }}
 
 jobs:
   backend:
@@ -50,6 +51,17 @@ jobs:
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           docker push "$IMAGEN"
 
+      # el servicio de notificaciones: sus pruebas y su imagen
+      - name: Test Notificaciones
+        working-directory: Notifications
+        run: go test ./...
+
+      - name: Docker Build y Push Notificaciones
+        working-directory: Notifications
+        run: |
+          docker build -t "$IMAGEN_NOTIFICACIONES" .
+          docker push "$IMAGEN_NOTIFICACIONES"
+
   terraform:
     name: Terraform
     needs: backend
@@ -62,6 +74,8 @@ jobs:
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_smtp_user: ${{ secrets.SMTP_USER }}
+      TF_VAR_smtp_password: ${{ secrets.SMTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -101,3 +115,6 @@ jobs:
 
       - name: Deploy Cloud Run
         run: gcloud run deploy api --image "$IMAGEN" --region "$REGION" --quiet
+
+      - name: Deploy Cloud Run Notificaciones
+        run: gcloud run deploy notification-cloud-run --image "$IMAGEN_NOTIFICACIONES" --region "$REGION" --quiet

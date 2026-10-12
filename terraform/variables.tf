@@ -47,3 +47,14 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "smtp_user" {
+  description = "Cuenta de correo que envía las notificaciones (secreto SMTP_USER)"
+  type        = string
+}
+
+variable "smtp_password" {
+  description = "Contraseña de aplicación de esa cuenta (secreto SMTP_PASSWORD)"
+  type        = string
+  sensitive   = true
+}

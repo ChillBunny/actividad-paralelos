@@ -19,3 +19,13 @@ output "conexion_cloud_sql" {
   description = "Nombre de conexión de Cloud SQL (vacío si la base está apagada)"
   value       = var.crear_base ? google_sql_database_instance.base[0].connection_name : ""
 }
+
+output "url_notificaciones" {
+  description = "La Cloud Run de notificaciones (solo la puede llamar Pub/Sub)"
+  value       = google_cloud_run_v2_service.notificaciones.uri
+}
+
+output "tema_pubsub" {
+  description = "El tema donde el backend publica los correos"
+  value       = google_pubsub_topic.notificaciones.id
+}

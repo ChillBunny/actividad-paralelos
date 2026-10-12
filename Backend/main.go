@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
@@ -70,11 +73,22 @@ type Notificacion struct {
 	Date    time.Time `json:"date"`
 }
 
+// lo que llega para mandar un correo: todo obligatorio y con un email válido
+type DatosCorreo struct {
+	Email   string `json:"email" binding:"required,email"`
+	Subject string `json:"subject" binding:"required"`
+	Message string `json:"message" binding:"required"`
+}
+
+// el publicador de Pub/Sub, por donde salen los correos hacia la Cloud Run de notificaciones
+var publicador *pubsub.Publisher
+
 // ---------- Las rutas ----------
 
 func main() {
 	godotenv.Load() // lee el archivo .env, para no escribir claves en el código
 	conectar()
+	conectarPubSub()
 	os.MkdirAll("uploads", 0755) // la carpeta donde se guardan los archivos subidos
 
 	servidor := gin.Default()
@@ -102,6 +116,7 @@ func main() {
 	protegido.GET("/profile", verPerfil)
 	protegido.GET("/stats", verEstadisticas)
 	protegido.GET("/notifications", verNotificaciones)
+	protegido.POST("/notifications/send", enviarNotificacion)
 
 	// escucha en todas las direcciones de la computadora, para que el teléfono pueda entrar
 	servidor.Run(":8080")
@@ -354,4 +369,45 @@ func verNotificaciones(c *gin.Context) {
 	}
 	sort.Slice(avisos, func(i, j int) bool { return avisos[i].Date.After(avisos[j].Date) })
 	c.JSON(200, avisos)
+}
+
+// ---------- Correos por Pub/Sub ----------
+
+// prepara el publicador de Pub/Sub. El proyecto y el tema llegan por variables de entorno;
+// si faltan (por ejemplo en la computadora), la API sigue funcionando sin correos
+func conectarPubSub() {
+	cliente, err := pubsub.NewClient(context.Background(), os.Getenv("GCP_PROJECT_ID"))
+	if err != nil {
+		log.Println("Pub/Sub no está disponible: ", err)
+		return
+	}
+	publicador = cliente.Publisher(os.Getenv("PUBSUB_TOPIC"))
+}
+
+// POST /notifications/send: valida el correo y lo publica en Pub/Sub. La API no manda el
+// correo: lo recibe la Cloud Run de notificaciones, que es la que lo envía
+func enviarNotificacion(c *gin.Context) {
+	var datos DatosCorreo
+	if c.ShouldBindJSON(&datos) != nil {
+		c.JSON(400, gin.H{"error": "faltan datos: email (válido), subject y message"})
+		return
+	}
+	if publicador == nil {
+		c.JSON(500, gin.H{"error": "Error al enviar mensaje."})
+		return
+	}
+
+	// el mensaje viaja como JSON. Get espera a que Pub/Sub confirme que lo recibió
+	cuerpo, _ := json.Marshal(datos)
+	espera, cancelar := context.WithTimeout(c, 10*time.Second)
+	defer cancelar()
+	id, err := publicador.Publish(espera, &pubsub.Message{Data: cuerpo}).Get(espera)
+	if err != nil {
+		log.Println("no se pudo publicar en Pub/Sub: ", err)
+		c.JSON(500, gin.H{"error": "Error al enviar mensaje."})
+		return
+	}
+
+	log.Println("mensaje publicado en Pub/Sub con id", id, "para", datos.Email)
+	c.JSON(200, gin.H{"mensaje": "Mensaje enviado correctamente.", "id": id})
 }

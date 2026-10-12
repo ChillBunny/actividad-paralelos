@@ -6,8 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { urlArchivo } from './services';
 import { nombreCompleto } from './models';
 import {
-  useDashboardViewModel, useGaleriaViewModel, useLoginViewModel, useUsuarioDetalleViewModel,
-  useUsuarioFormViewModel, useUsuariosViewModel,
+  useCorreoViewModel, useDashboardViewModel, useGaleriaViewModel, useLoginViewModel,
+  useUsuarioDetalleViewModel, useUsuarioFormViewModel, useUsuariosViewModel,
 } from './viewmodels';
 
 // View: las pantallas, lo que comparten y los estilos. Solo muestran y le avisan al
@@ -300,6 +300,7 @@ export function DashboardScreen({ navegar }) {
       ) : null}
       <Boton titulo="Usuarios" onPress={() => navegar('usuarios')} />
       <Boton titulo="Galería" onPress={() => navegar('galeria')} />
+      <Boton titulo="Enviar correo" onPress={() => navegar('correo')} />
 
       <Text style={estilos.subtitulo}>Cargar los 4 endpoints</Text>
       <Tiempos secuencial={vm.tiempoSecuencial} concurrente={vm.tiempoConcurrente} />
@@ -517,6 +518,37 @@ export function GaleriaScreen({ navegar }) {
           </View>
         </>
       )}
+    </Pantalla>
+  );
+}
+
+// ---------- Correo ----------
+
+// se escribe el correo destino, el asunto y el mensaje, y se manda al backend
+export function CorreoScreen({ navegar }) {
+  const vm = useCorreoViewModel();
+  const { estilos, colores } = useTema();
+
+  return (
+    <Pantalla titulo="Enviar correo" onVolver={() => navegar('dashboard')}>
+      <Campo vm={vm} campo="email" texto="Correo destino" autoCapitalize="none" keyboardType="email-address" />
+      <Campo vm={vm} campo="subject" texto="Asunto" />
+      <Campo
+        vm={vm}
+        campo="message"
+        texto="Mensaje"
+        multiline
+        style={[estilos.campo, { minHeight: 130, textAlignVertical: 'top' }]}
+      />
+
+      {vm.cargando ? (
+        <ActivityIndicator size="large" color={colores.principal} style={{ marginBottom: 16 }} />
+      ) : (
+        <Boton titulo="Enviar" onPress={vm.enviar} />
+      )}
+      {vm.resultado ? (
+        <Text style={vm.salioBien ? estilos.resultado : estilos.error}>{vm.resultado}</Text>
+      ) : null}
     </Pantalla>
   );
 }

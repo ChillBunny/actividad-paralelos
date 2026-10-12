@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { haySesion } from './src/repositories';
 import {
-  DashboardScreen, GaleriaScreen, LoginScreen, TemaContext, temas,
+  CorreoScreen, DashboardScreen, GaleriaScreen, LoginScreen, TemaContext, temas,
   UsuarioDetalleScreen, UsuarioFormScreen, UsuariosScreen,
 } from './src/views';
 
@@ -16,6 +16,7 @@ const pantallas = {
   detalle: UsuarioDetalleScreen,
   formulario: UsuarioFormScreen,
   galeria: GaleriaScreen,
+  correo: CorreoScreen,
 };
 
 // la navegación: guarda qué pantalla se ve y con qué datos (un id o un usuario).

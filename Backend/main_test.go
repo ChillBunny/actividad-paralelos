@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -45,5 +46,20 @@ func TestValidarToken(t *testing.T) {
 	servidor.ServeHTTP(respuesta, sinToken)
 	if respuesta.Code != http.StatusUnauthorized {
 		t.Fatalf("sin token esperaba 401 y llegó %d", respuesta.Code)
+	}
+}
+
+// el correo se valida antes de publicarlo: sin email válido responde 400
+func TestEnviarNotificacionValida(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	servidor := gin.New()
+	servidor.POST("/notifications/send", enviarNotificacion)
+
+	malo := httptest.NewRequest("POST", "/notifications/send", strings.NewReader(`{"email":"no-es-un-correo","subject":"x","message":"y"}`))
+	malo.Header.Set("Content-Type", "application/json")
+	respuesta := httptest.NewRecorder()
+	servidor.ServeHTTP(respuesta, malo)
+	if respuesta.Code != http.StatusBadRequest {
+		t.Fatalf("con un email inválido esperaba 400 y llegó %d", respuesta.Code)
 	}
 }

@@ -120,3 +120,9 @@ paths:
       responses:
         "200":
           description: Últimos registros y subidas
+  /notifications/send:
+    post:
+      operationId: enviarNotificacion
+      responses:
+        "200":
+          description: Mensaje publicado en Pub/Sub

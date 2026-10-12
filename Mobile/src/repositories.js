@@ -47,3 +47,8 @@ export const obtenerNotificaciones = () => pedir('GET', '/notifications');
 export const obtenerArchivos = () => pedir('GET', '/files');
 export const subirArchivo = (uri) => subir(uri);
 export const eliminarArchivo = (id) => pedir('DELETE', '/upload/' + id);
+
+// ---------- Correos ----------
+
+// el backend no manda el correo: lo publica en Pub/Sub y otra Cloud Run lo envía
+export const enviarCorreo = (datos) => pedir('POST', '/notifications/send', datos);

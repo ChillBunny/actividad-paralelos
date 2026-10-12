@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  cambiarFoto, cerrarSesion, crearUsuario, editarUsuario, eliminarArchivo, eliminarUsuario,
+  cambiarFoto, cerrarSesion, crearUsuario, editarUsuario, eliminarArchivo, eliminarUsuario, enviarCorreo,
   entrarComoSuperUsuario, login, obtenerArchivos, obtenerEstadisticas, obtenerNotificaciones,
   obtenerPerfil, obtenerUsuario, obtenerUsuarios, registrar, subirArchivo,
 } from './repositories';
@@ -281,4 +281,27 @@ export function useGaleriaViewModel() {
     ...carga, archivos, seleccionadas, setSeleccionadas, marcadas, marcar, borrar,
     tiempoSecuencial, tiempoConcurrente, subirUnaPorUna, subirTodasALaVez,
   };
+}
+
+// ---------- Correo ----------
+
+// la pantalla de enviar un correo: guarda los tres campos y el resultado del envío
+export function useCorreoViewModel() {
+  const carga = useCarga();
+  const [campos, setCampos] = useState({ email: '', subject: '', message: '' });
+  const [resultado, setResultado] = useState('');
+  const [salioBien, setSalioBien] = useState(false);
+
+  // cambia un solo campo y deja los demás como estaban
+  const cambiar = (campo, valor) => setCampos((antes) => ({ ...antes, [campo]: valor }));
+
+  // manda los datos al backend (POST /notifications/send) y guarda el mensaje para mostrar
+  async function enviar() {
+    setResultado('');
+    const bien = await carga.correr(() => enviarCorreo(campos));
+    setSalioBien(bien);
+    setResultado(bien ? 'Mensaje enviado correctamente.' : 'Error al enviar mensaje.');
+  }
+
+  return { ...carga, campos, cambiar, resultado, salioBien, enviar };
 }
