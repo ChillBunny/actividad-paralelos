@@ -38,8 +38,10 @@ entrega a `notification-cloud-run`, que lo envía por SMTP y lo registra en Clou
 ## Secretos
 
 Ninguna clave está en el código. En GitHub Secrets: `GCP_PROJECT_ID`, `GCP_REGION`,
-`GCP_SA_KEY`, `DATABASE_URL`, `JWT_SECRET`, `DB_PASSWORD`, `SMTP_USER` y `SMTP_PASSWORD`. Terraform guarda `DATABASE_URL`
-y `JWT_SECRET` en Secret Manager, y Cloud Run los recibe como variables de entorno.
+`GCP_SA_KEY`, `DATABASE_URL`, `JWT_SECRET` y `DB_PASSWORD`. Terraform guarda `DATABASE_URL`,
+`JWT_SECRET` y la contraseña del correo en Secret Manager, y Cloud Run los recibe como
+variables de entorno. La cuenta de correo es de prueba (Ethereal) y está en
+`terraform.tfvars`.
 
 ## La app
 

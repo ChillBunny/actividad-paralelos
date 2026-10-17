@@ -48,13 +48,18 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "smtp_host" {
+  description = "Servidor de correo (SMTP) que envía las notificaciones"
+  type        = string
+}
+
 variable "smtp_user" {
-  description = "Cuenta de correo que envía las notificaciones (secreto SMTP_USER)"
+  description = "Cuenta de correo que envía las notificaciones"
   type        = string
 }
 
 variable "smtp_password" {
-  description = "Contraseña de aplicación de esa cuenta (secreto SMTP_PASSWORD)"
+  description = "Contraseña de esa cuenta de correo"
   type        = string
   sensitive   = true
 }

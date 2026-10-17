@@ -74,8 +74,6 @@ jobs:
       TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_smtp_user: ${{ secrets.SMTP_USER }}
-      TF_VAR_smtp_password: ${{ secrets.SMTP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 

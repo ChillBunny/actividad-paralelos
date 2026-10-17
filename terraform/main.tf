@@ -410,10 +410,10 @@ resource "google_cloud_run_v2_service" "notificaciones" {
         container_port = 8080
       }
 
-      # el servidor de correo de Gmail y la cuenta que envía
+      # el servidor de correo y la cuenta que envía
       env {
         name  = "SMTP_HOST"
-        value = "smtp.gmail.com"
+        value = var.smtp_host
       }
       env {
         name  = "SMTP_PORT"
@@ -463,7 +463,7 @@ resource "google_cloud_run_v2_service_iam_member" "pubsub_invoca" {
 # Logger: cuenta los correos enviados que registra el servicio de notificaciones
 resource "google_logging_metric" "correos_enviados" {
   name   = "correos-enviados"
-  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"notification-cloud-run\" AND jsonPayload.message:\"correo enviado\""
+  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"notification-cloud-run\" AND textPayload:\"correo enviado\""
 
   metric_descriptor {
     metric_kind = "DELTA"

@@ -10,6 +10,7 @@ import (
 	"net/smtp"
 	"os"
 	"strings"
+	"time"
 )
 
 // lo que manda Pub/Sub: el mensaje viene dentro de "message", con los datos en base64
@@ -71,7 +72,8 @@ func enviar(correo Correo) error {
 
 	// se quitan los saltos de línea del asunto, para que nadie pueda agregar encabezados
 	asunto := strings.NewReplacer("\r", " ", "\n", " ").Replace(correo.Subject)
-	texto := "From: " + usuario + "\r\n" +
+	texto := "Date: " + time.Now().Format(time.RFC1123Z) + "\r\n" +
+		"From: " + usuario + "\r\n" +
 		"To: " + correo.Email + "\r\n" +
 		"Subject: " + mime.QEncoding.Encode("utf-8", asunto) + "\r\n" +
 		"Content-Type: text/plain; charset=utf-8\r\n\r\n" +
